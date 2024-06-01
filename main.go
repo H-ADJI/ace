@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	challenges := ace.GetChallenges()
+	challenges := ace.ParseChallenges()
 	for i := range 10 {
 		fmt.Println(challenges[i])
 	}

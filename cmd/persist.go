@@ -13,5 +13,5 @@ type Challenge struct {
 }
 
 func (chall Challenge) String() string {
-	return fmt.Sprintf("Title : %s  |  Difficulty : %s ", chall.title, chall.difficulty)
+	return fmt.Sprintf("Title : %s  |  Difficulty : %s | url : %s", chall.title, chall.difficulty, chall.url)
 }

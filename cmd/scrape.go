@@ -1,6 +1,7 @@
 package ace
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"slices"
@@ -8,36 +9,38 @@ import (
 	"strings"
 
 	"github.com/antchfx/htmlquery"
+	"golang.org/x/net/html"
 )
 
-func GetChallenges() []Challenge {
+func ParseChallenges() []Challenge {
 	challenges := make([]Challenge, 0, 600)
-	resp, err := http.Get("https://www.techiedelight.com/data-structures-and-algorithms-problems/")
-	if err != nil {
-		log.Fatalf("Call to website failed, %s", err)
-	}
-	defer resp.Body.Close()
-	source, err := htmlquery.Parse(resp.Body)
-	if err != nil {
-		log.Fatalf("Couldn't parse response Body, %s", err)
-	}
+	source := getSource("https://www.techiedelight.com/data-structures-and-algorithms-problems/")
 	challElements, err := htmlquery.QueryAll(source, "//div[@class='post-problems']//ol/li")
 	if err != nil {
 		log.Fatalf("Couldn't parse response Body, %s", err)
 	}
-	for _, el := range challElements {
+	for i, el := range challElements {
 		number, err := strconv.Atoi(strings.Split(htmlquery.FindOne(el, "/text()").Data, ".")[0])
 		if err != nil {
 			log.Fatalf("Couldn't parse response Body, %s", err)
 		}
 		challengeTitle := htmlquery.FindOne(el, "/a/text()")
 		challengeUrl := htmlquery.SelectAttr(htmlquery.FindOne(el, "/a"), "href")
+		source = getSource(challengeUrl)
 		challengeDifficulty := htmlquery.FindOne(el, "/span/span/text()")
 		var challengeTags []string
 		for _, node := range htmlquery.Find(el, "/*[self::category or self::tag or self::lists]/text()") {
 			challengeTags = slices.Concat(challengeTags, processTags(node.Data))
 		}
-		challenges = append(challenges, Challenge{id: number, url: challengeUrl, title: challengeTitle.Data, difficulty: challengeDifficulty.Data, tags: challengeTags})
+		challengeDesc := htmlquery.Find(source, "//div[@class='post-content']/p[text()='For example,']/preceding-sibling::*/text()")
+		var description string
+		for _, t := range challengeDesc {
+			description += t.Data
+		}
+		if i == 50 {
+			break
+		}
+		challenges = append(challenges, Challenge{id: number, description: description, url: challengeUrl, title: challengeTitle.Data, difficulty: challengeDifficulty.Data, tags: challengeTags})
 	}
 	if err != nil {
 		log.Fatalf("Couldn't parse response Body, %s", err)
@@ -46,11 +49,21 @@ func GetChallenges() []Challenge {
 }
 
 func processTags(tags string) []string {
-
-	// remove punc
 	tags = strings.Replace(tags, ",", "", -1)
-	// lower case
 	tags = strings.ToLower(tags)
-	// split
 	return strings.Split(tags, " ")
+}
+
+func getSource(url string) *html.Node {
+	fmt.Println("visiting", url)
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatalf("Call to url %s failed \n %s", url, err)
+	}
+	defer resp.Body.Close()
+	source, err := htmlquery.Parse(resp.Body)
+	if err != nil {
+		log.Fatalf("Couldn't parse response Body from %s \n %s", url, err)
+	}
+	return source
 }
