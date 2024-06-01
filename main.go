@@ -8,7 +8,7 @@ import (
 
 func main() {
 	challenges := ace.GetChallenges()
-	for i := range 100 {
+	for i := range 10 {
 		fmt.Println(challenges[i])
 	}
 }

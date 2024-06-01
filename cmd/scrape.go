@@ -3,6 +3,7 @@ package ace
 import (
 	"log"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -31,12 +32,25 @@ func GetChallenges() []Challenge {
 		}
 		challengeTitle := htmlquery.FindOne(el, "/a/text()")
 		challengeUrl := htmlquery.SelectAttr(htmlquery.FindOne(el, "/a"), "href")
-		// challengeDifficulty := htmlquery.FindOne(el, "/span/span/text()")
-		// challengeTags := htmlquery.FindOne(el, "/*[self::category or self::tag or self::lists]/text()")
-		challenges = append(challenges, Challenge{id: number, url: challengeUrl, title: challengeTitle.Data})
+		challengeDifficulty := htmlquery.FindOne(el, "/span/span/text()")
+		var challengeTags []string
+		for _, node := range htmlquery.Find(el, "/*[self::category or self::tag or self::lists]/text()") {
+			challengeTags = slices.Concat(challengeTags, processTags(node.Data))
+		}
+		challenges = append(challenges, Challenge{id: number, url: challengeUrl, title: challengeTitle.Data, difficulty: challengeDifficulty.Data, tags: challengeTags})
 	}
 	if err != nil {
 		log.Fatalf("Couldn't parse response Body, %s", err)
 	}
 	return challenges
+}
+
+func processTags(tags string) []string {
+
+	// remove punc
+	tags = strings.Replace(tags, ",", "", -1)
+	// lower case
+	tags = strings.ToLower(tags)
+	// split
+	return strings.Split(tags, " ")
 }

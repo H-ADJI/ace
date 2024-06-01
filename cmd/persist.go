@@ -1,5 +1,7 @@
 package ace
 
+import "fmt"
+
 type Challenge struct {
 	title       string
 	id          int
@@ -7,5 +9,9 @@ type Challenge struct {
 	description string
 	isSolved    bool
 	tags        []string
-	difficulty  int8
+	difficulty  string
+}
+
+func (chall Challenge) String() string {
+	return fmt.Sprintf("Title : %s  |  Difficulty : %s ", chall.title, chall.difficulty)
 }
