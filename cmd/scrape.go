@@ -3,14 +3,13 @@ package ace
 import (
 	"log"
 	"net/http"
-	"slices"
 	"strings"
 
 	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html"
 )
 
-func ParseChallenges() []Challenge {
+func ScrapeChallenges(sampleSize int) []Challenge {
 	challenges := make([]Challenge, 0, 600)
 	source := getSource("https://www.techiedelight.com/data-structures-and-algorithms-problems/")
 	challElements, err := htmlquery.QueryAll(source, "//div[@class='post-problems']//ol/li")
@@ -25,30 +24,25 @@ func ParseChallenges() []Challenge {
 		challengeUrl := htmlquery.SelectAttr(htmlquery.FindOne(el, "/a"), "href")
 		source = getSource(challengeUrl)
 		challengeDifficulty := htmlquery.FindOne(el, "/span/span/text()")
-		var challengeTags []string
+		var challengeTags strings.Builder
 		for _, node := range htmlquery.Find(el, "/*[self::category or self::tag or self::lists]/text()") {
-			challengeTags = slices.Concat(challengeTags, processTags(node.Data))
+			challengeTags.WriteString(node.Data)
+			challengeTags.WriteString("")
 		}
 		challengeDesc := htmlquery.Find(source, "//div[@class='post-content']/p[text()='For example,']/preceding-sibling::*/text()")
 		var description string
 		for _, t := range challengeDesc {
 			description += t.Data
 		}
-		if i == 10 {
+		if i == sampleSize {
 			break
 		}
-		challenges = append(challenges, Challenge{Description: description, Url: challengeUrl, Title: challengeTitle.Data, Difficulty: challengeDifficulty.Data, tags: challengeTags})
+		challenges = append(challenges, Challenge{Description: description, Url: challengeUrl, Title: challengeTitle.Data, Difficulty: challengeDifficulty.Data, Tags: challengeTags.String()})
 	}
 	if err != nil {
 		log.Fatalf("Couldn't parse response Body, %s", err)
 	}
 	return challenges
-}
-
-func processTags(tags string) []string {
-	tags = strings.Replace(tags, ",", "", -1)
-	tags = strings.ToLower(tags)
-	return strings.Split(tags, " ")
 }
 
 func getSource(url string) *html.Node {

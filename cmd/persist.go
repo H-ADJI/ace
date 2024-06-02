@@ -13,7 +13,7 @@ type Challenge struct {
 	Title       string
 	Url         string
 	Description string
-	tags        []string
+	Tags        string
 	Difficulty  string
 }
 
@@ -59,22 +59,31 @@ func DropTable(db *sql.DB) error {
 	return err
 }
 
-func (chall Challenge) InsertIntoDB(db *sql.DB) (string, error) {
+func (chall Challenge) InsertIntoDB(db *sql.DB) error {
 	q, err := db.Prepare("INSERT INTO challenges (title, description, url, difficulty) VALUES (?, ?, ?, ?);")
 	if err != nil {
-		return "", fmt.Errorf("couldn't prepare sql statement, %s", err)
+		return fmt.Errorf("couldn't prepare sql statement, %s", err)
 	}
 	defer q.Close()
-	res, err := q.Exec(chall.Title, chall.Description, chall.Url, chall.Difficulty)
+	_, err = q.Exec(chall.Title, chall.Description, chall.Url, chall.Difficulty)
 	if err != nil {
-		return "", fmt.Errorf("couldnt insert %s", chall)
+		return fmt.Errorf("couldnt insert %s", chall)
 	}
-	insertedRowId, _ := res.LastInsertId()
-	row := db.QueryRow("SELECT url  FROM challenges WHERE id=?;", insertedRowId)
-	var url string
-	err = row.Scan(&url)
+
+	return nil
+}
+
+func readDBChallenges(db *sql.DB) ([]Challenge, error) {
+	res, err := db.Query("Select title, description, url, tags, difficulty from challenges")
+	challenges := make([]Challenge, 0)
 	if err != nil {
-		return "", fmt.Errorf("couldn't scan affected row, %s", err)
+		return challenges, fmt.Errorf("Wrong query, %s", err)
 	}
-	return url, nil
+	defer res.Close()
+	for res.Next() {
+		chall := Challenge{}
+		res.Scan(&chall.Title, &chall.Description, &chall.Url, &chall.Tags, &chall.Difficulty)
+		challenges = append(challenges, chall)
+	}
+	return challenges, nil
 }
