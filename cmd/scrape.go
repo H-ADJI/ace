@@ -1,11 +1,9 @@
 package ace
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/antchfx/htmlquery"
@@ -20,7 +18,6 @@ func ParseChallenges() []Challenge {
 		log.Fatalf("Couldn't parse response Body, %s", err)
 	}
 	for i, el := range challElements {
-		number, err := strconv.Atoi(strings.Split(htmlquery.FindOne(el, "/text()").Data, ".")[0])
 		if err != nil {
 			log.Fatalf("Couldn't parse response Body, %s", err)
 		}
@@ -37,10 +34,10 @@ func ParseChallenges() []Challenge {
 		for _, t := range challengeDesc {
 			description += t.Data
 		}
-		if i == 50 {
+		if i == 10 {
 			break
 		}
-		challenges = append(challenges, Challenge{id: number, description: description, url: challengeUrl, title: challengeTitle.Data, difficulty: challengeDifficulty.Data, tags: challengeTags})
+		challenges = append(challenges, Challenge{Description: description, Url: challengeUrl, Title: challengeTitle.Data, Difficulty: challengeDifficulty.Data, tags: challengeTags})
 	}
 	if err != nil {
 		log.Fatalf("Couldn't parse response Body, %s", err)
@@ -55,8 +52,28 @@ func processTags(tags string) []string {
 }
 
 func getSource(url string) *html.Node {
-	fmt.Println("visiting", url)
-	resp, err := http.Get(url)
+	cnx := http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatalf("Build request failed\n %s", err)
+	}
+	req.Header.Set("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+	req.Header.Set("accept-language", "en-US,en;q=0.7")
+	req.Header.Set("cache-control", "no-cache")
+	req.Header.Set("pragma", "no-cache")
+	req.Header.Set("priority", "u=0, i")
+	req.Header.Set("referer", "https://www.techiedelight.com/data-structures-and-algorithms-problems/")
+	req.Header.Set("sec-ch-ua", `"Brave";v="125", "Chromium";v="125", "Not.A/Brand";v="24"`)
+	req.Header.Set("sec-ch-ua-mobile", "?0")
+	req.Header.Set("sec-ch-ua-platform", `"Linux"`)
+	req.Header.Set("sec-fetch-dest", "document")
+	req.Header.Set("sec-fetch-mode", "navigate")
+	req.Header.Set("sec-fetch-site", "none")
+	req.Header.Set("sec-fetch-user", "?1")
+	req.Header.Set("sec-gpc", "1")
+	req.Header.Set("upgrade-insecure-requests", "1")
+	req.Header.Set("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+	resp, err := cnx.Do(req)
 	if err != nil {
 		log.Fatalf("Call to url %s failed \n %s", url, err)
 	}
