@@ -14,10 +14,6 @@ func LoadData(db *sql.DB) {
 	if err != nil {
 		log.Fatalln("couldnt create search table", err)
 	}
-	err = PopulateSearchTable(db)
-	if err != nil {
-		log.Fatalln("couldnt populate search table", err)
-	}
 	// read data from db
 	challenges, err := readDBChallenges(db)
 	if err != nil {
@@ -30,5 +26,9 @@ func LoadData(db *sql.DB) {
 		for _, chall := range challenges {
 			chall.InsertIntoDB(db)
 		}
+	}
+	err = PopulateSearchTable(db)
+	if err != nil {
+		log.Fatalln("couldnt populate search table", err)
 	}
 }
