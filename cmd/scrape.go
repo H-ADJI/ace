@@ -27,7 +27,7 @@ func ScrapeChallenges(sampleSize int) []Challenge {
 		var challengeTags strings.Builder
 		for _, node := range htmlquery.Find(el, "/*[self::category or self::tag or self::lists]/text()") {
 			challengeTags.WriteString(node.Data)
-			challengeTags.WriteString("")
+			challengeTags.WriteString(" ")
 		}
 		challengeDesc := htmlquery.Find(source, "//div[@class='post-content']/p[text()='For example,']/preceding-sibling::*/text()")
 		var description string

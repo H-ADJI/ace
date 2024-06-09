@@ -82,6 +82,7 @@ func DropTable(db *sql.DB) error {
 	return err
 }
 
+
 func (chall Challenge) InsertIntoDB(db *sql.DB) error {
 	q, err := db.Prepare("INSERT INTO challenges (title, description, url, difficulty, tags) VALUES (?, ?, ?, ?,?);")
 	if err != nil {
