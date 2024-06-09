@@ -11,5 +11,7 @@ require (
 require (
 	github.com/antchfx/xpath v1.3.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
+	github.com/muesli/go-app-paths v0.2.2 // indirect
 	golang.org/x/text v0.7.0 // indirect
 )

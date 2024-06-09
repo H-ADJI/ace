@@ -2,30 +2,27 @@ package ace
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
-	"os"
-	"strconv"
 )
 
 func LoadData(db *sql.DB) {
-	devENV := "false"
-	if fromEnv, ok := os.LookupEnv("DEV_ENV"); ok {
-		devENV = fromEnv
-	}
-	if v, _ := strconv.ParseBool(devENV); v {
-		fmt.Println(devENV)
-		err := DropTable(db)
-		if err != nil {
-			log.Fatalln("couldnt drop table", err)
-		}
-	}
 	err := CreateTable(db)
 	if err != nil {
 		log.Fatalln("couldnt create table", err)
 	}
+	err = CreateSearchTable(db)
+	if err != nil {
+		log.Fatalln("couldnt create search table", err)
+	}
+	err = PopulateSearchTable(db)
+	if err != nil {
+		log.Fatalln("couldnt populate search table", err)
+	}
 	// read data from db
-	challenges, _ := readDBChallenges(db)
+	challenges, err := readDBChallenges(db)
+	if err != nil {
+		log.Fatalf("coulndt read db challenges, %s", err)
+	}
 	if len(challenges) == 0 {
 		// if not exist scrape it
 		challenges = ScrapeChallenges(-1)
