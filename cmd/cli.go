@@ -28,3 +28,11 @@ func LoadData(db *sql.DB) {
 		log.Fatalln("couldnt populate search table", err)
 	}
 }
+
+func Search(db *sql.DB, searchQuery string) []Challenge {
+	challs, err := searchChallenge(db, searchQuery)
+	if err != nil {
+		log.Fatalf("Error getting search result due to %s", err)
+	}
+	return challs
+}

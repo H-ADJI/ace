@@ -13,5 +13,5 @@ func main() {
 		log.Fatalln("couldnt get db connection", err)
 	}
 	ace.LoadData(db)
-
+	log.Println(ace.Search(db, "array"))
 }
