@@ -21,11 +21,7 @@ func LoadData(db *sql.DB) {
 	}
 	if len(challenges) == 0 {
 		// if not exist scrape it
-		challenges = ScrapeChallenges(-1)
-		// load it back to db
-		for _, chall := range challenges {
-			chall.InsertIntoDB(db)
-		}
+		crawlChallenges(db)
 	}
 	err = PopulateSearchTable(db)
 	if err != nil {

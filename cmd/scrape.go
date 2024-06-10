@@ -1,6 +1,7 @@
 package ace
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"strings"
@@ -9,44 +10,61 @@ import (
 	"golang.org/x/net/html"
 )
 
-func ScrapeChallenges(sampleSize int) []Challenge {
-	challenges := make([]Challenge, 0, 600)
-	source := getSource("https://www.techiedelight.com/data-structures-and-algorithms-problems/")
+const workerPoolSize = 3
+
+func crawlChallenges(db *sql.DB) {
+	c := http.Client{}
+	source := getSource(c, "https://www.techiedelight.com/data-structures-and-algorithms-problems/")
 	challElements, err := htmlquery.QueryAll(source, "//div[@class='post-problems']//ol/li")
+	pubChan := make(chan Challenge, 5)
+	consumeChan := make(chan Challenge, 5)
 	if err != nil {
 		log.Fatalf("Couldn't parse response Body, %s", err)
 	}
-	for i, el := range challElements {
+	for i := 0; i < workerPoolSize; i++ {
+		go addDescription(pubChan, consumeChan, c)
+	}
+	go func() {
+		for chall := range consumeChan {
+			chall.InsertIntoDB(db)
+		}
+	}()
+	for _, el := range challElements {
 		if err != nil {
 			log.Fatalf("Couldn't parse response Body, %s", err)
 		}
 		challengeTitle := htmlquery.FindOne(el, "/a/text()")
 		challengeUrl := htmlquery.SelectAttr(htmlquery.FindOne(el, "/a"), "href")
-		source = getSource(challengeUrl)
 		challengeDifficulty := htmlquery.FindOne(el, "/span/span/text()")
 		var challengeTags strings.Builder
 		for _, node := range htmlquery.Find(el, "/*[self::category or self::tag or self::lists]/text()") {
 			challengeTags.WriteString(node.Data)
 			challengeTags.WriteString(" ")
 		}
-		challengeDesc := htmlquery.Find(source, "//div[@class='post-content']/p[text()='For example,']/preceding-sibling::*/text()")
-		var description string
-		for _, t := range challengeDesc {
-			description += t.Data
-		}
-		if i == sampleSize {
-			break
-		}
-		challenges = append(challenges, Challenge{Description: description, Url: challengeUrl, Title: challengeTitle.Data, Difficulty: challengeDifficulty.Data, Tags: challengeTags.String()})
+		pubChan <- Challenge{
+			Url:        challengeUrl,
+			Title:      challengeTitle.Data,
+			Difficulty: challengeDifficulty.Data,
+			Tags:       challengeTags.String()}
 	}
-	if err != nil {
-		log.Fatalf("Couldn't parse response Body, %s", err)
-	}
-	return challenges
-}
+	close(pubChan)
 
-func getSource(url string) *html.Node {
-	cnx := http.Client{}
+}
+func addDescription(receiveChan <-chan Challenge, sendChan chan<- Challenge, client http.Client) {
+	for chall := range receiveChan {
+		source := getSource(client, chall.Url)
+		challengeDesc := htmlquery.Find(source, "//div[@class='post-content']/p[text()='For example,']/preceding-sibling::*/text()")
+		var description strings.Builder
+		for _, t := range challengeDesc {
+			description.WriteString(t.Data)
+			description.WriteString(" ")
+		}
+		chall.Description = description.String()
+		sendChan <- chall
+	}
+	close(sendChan)
+}
+func getSource(client http.Client, url string) *html.Node {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Fatalf("Build request failed\n %s", err)
@@ -67,7 +85,7 @@ func getSource(url string) *html.Node {
 	req.Header.Set("sec-gpc", "1")
 	req.Header.Set("upgrade-insecure-requests", "1")
 	req.Header.Set("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
-	resp, err := cnx.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatalf("Call to url %s failed \n %s", url, err)
 	}
@@ -76,5 +94,6 @@ func getSource(url string) *html.Node {
 	if err != nil {
 		log.Fatalf("Couldn't parse response Body from %s \n %s", url, err)
 	}
+	log.Println("Got response for ...", url)
 	return source
 }
