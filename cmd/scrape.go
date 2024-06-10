@@ -11,13 +11,13 @@ import (
 	"golang.org/x/net/html"
 )
 
-const workerPoolSize = 20
+const workerPoolSize = 4
 
 func crawlChallenges(db *sql.DB) {
 	c := http.Client{}
 	wg := sync.WaitGroup{}
-	pubChan := make(chan Challenge, 20)
-	consumeChan := make(chan Challenge, 5)
+	pubChan := make(chan Challenge, 10)
+	consumeChan := make(chan Challenge, 10)
 	source := getSource(c, "https://www.techiedelight.com/data-structures-and-algorithms-problems/")
 	challElements, err := htmlquery.QueryAll(source, "//div[@class='post-problems']//ol/li")
 	if err != nil {
