@@ -5,30 +5,29 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html"
 )
 
-const workerPoolSize = 3
+const workerPoolSize = 20
 
 func crawlChallenges(db *sql.DB) {
 	c := http.Client{}
+	wg := sync.WaitGroup{}
+	pubChan := make(chan Challenge, 20)
+	consumeChan := make(chan Challenge, 5)
 	source := getSource(c, "https://www.techiedelight.com/data-structures-and-algorithms-problems/")
 	challElements, err := htmlquery.QueryAll(source, "//div[@class='post-problems']//ol/li")
-	pubChan := make(chan Challenge, 5)
-	consumeChan := make(chan Challenge, 5)
 	if err != nil {
 		log.Fatalf("Couldn't parse response Body, %s", err)
 	}
 	for i := 0; i < workerPoolSize; i++ {
-		go addDescription(pubChan, consumeChan, c)
+		wg.Add(1)
+		go addDescription(pubChan, consumeChan, &wg, c)
 	}
-	go func() {
-		for chall := range consumeChan {
-			chall.InsertIntoDB(db)
-		}
-	}()
+	go loadIntoDB(consumeChan, db)
 	for _, el := range challElements {
 		if err != nil {
 			log.Fatalf("Couldn't parse response Body, %s", err)
@@ -48,9 +47,16 @@ func crawlChallenges(db *sql.DB) {
 			Tags:       challengeTags.String()}
 	}
 	close(pubChan)
-
+	wg.Wait()
+	close(consumeChan)
 }
-func addDescription(receiveChan <-chan Challenge, sendChan chan<- Challenge, client http.Client) {
+func loadIntoDB(consumeChan <-chan Challenge, db *sql.DB) {
+	for chall := range consumeChan {
+		chall.InsertIntoDB(db)
+	}
+}
+func addDescription(receiveChan <-chan Challenge, sendChan chan<- Challenge, wg *sync.WaitGroup, client http.Client) {
+	defer wg.Done()
 	for chall := range receiveChan {
 		source := getSource(client, chall.Url)
 		challengeDesc := htmlquery.Find(source, "//div[@class='post-content']/p[text()='For example,']/preceding-sibling::*/text()")
@@ -62,7 +68,6 @@ func addDescription(receiveChan <-chan Challenge, sendChan chan<- Challenge, cli
 		chall.Description = description.String()
 		sendChan <- chall
 	}
-	close(sendChan)
 }
 func getSource(client http.Client, url string) *html.Node {
 	req, err := http.NewRequest("GET", url, nil)
