@@ -79,12 +79,12 @@ func PopulateSearchTable(db *sql.DB) error {
 	}
 	return nil
 }
-func searchChallenge(db *sql.DB, searchQuery string) ([]Challenge, error) {
+func Search(db *sql.DB, searchQuery string) []Challenge {
 	challenges := make([]Challenge, 0)
 	sqlQuery := fmt.Sprintf("Select title, description, tags from %s where %s MATCH ? LIMIT 10", searchTableName, searchTableName)
 	res, err := db.Query(sqlQuery, searchQuery)
 	if err != nil {
-		return challenges, fmt.Errorf("wrong query, %w", err)
+		return challenges
 	}
 	defer res.Close()
 	for res.Next() {
@@ -92,7 +92,7 @@ func searchChallenge(db *sql.DB, searchQuery string) ([]Challenge, error) {
 		res.Scan(&chall.Title, &chall.Description, &chall.Tags)
 		challenges = append(challenges, chall)
 	}
-	return challenges, nil
+	return challenges
 }
 func DropTable(db *sql.DB) error {
 	_, err := db.Exec("DROP TABLE IF EXISTS challenges;")
@@ -126,4 +126,28 @@ func readDBChallenges(db *sql.DB) ([]Challenge, error) {
 		challenges = append(challenges, chall)
 	}
 	return challenges, nil
+}
+
+func LoadData(db *sql.DB) {
+	err := CreateTable(db)
+	if err != nil {
+		log.Fatalln("couldnt create table", err)
+	}
+	err = CreateSearchTable(db)
+	if err != nil {
+		log.Fatalln("couldnt create search table", err)
+	}
+	// read data from db
+	challenges, err := readDBChallenges(db)
+	if err != nil {
+		log.Fatalf("coulndt read db challenges, %s", err)
+	}
+	if len(challenges) == 0 {
+		// if not exist scrape it
+		crawlChallenges(db)
+	}
+	err = PopulateSearchTable(db)
+	if err != nil {
+		log.Fatalln("couldnt populate search table", err)
+	}
 }
